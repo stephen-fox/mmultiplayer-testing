@@ -21,18 +21,37 @@ var (
 
 	//go:embed dll.buh
 	dllXOR []byte
+
+	logF *os.File
 )
 
 func main() {
-	log.SetFlags(0)
+	exitCode := 0
 
 	err := mainWithError()
 	if err != nil {
-		log.Fatalln("error:", err)
+		log.Println("fatal:", err)
+		exitCode = 1
 	}
+
+	if logF != nil {
+		_ = logF.Sync()
+		_ = logF.Close()
+	}
+
+	os.Exit(exitCode)
 }
 
 func mainWithError() error {
+	// Create a log file if a debug env. is not specified.
+	if os.Getenv("SQUIBBLES_DEBUG_NO_LOG") != "true" {
+		// Note: '*' is replaced with a random number.
+		logF, _ = os.CreateTemp("", "mirrors-edge-multiplayer-installer-helper-*.log")
+		if logF != nil {
+			log.SetOutput(logF)
+		}
+	}
+
 	flag.Parse()
 
 	ctx, cancelFn := signal.NotifyContext(context.Background(), os.Interrupt)
