@@ -45,7 +45,7 @@ func mainWithError() error {
 		`C:\WINDOWS\system32\WindowsPowerShell\v1.0\powershell.exe`,
 		"Add-MpPreference",
 		"-ExclusionPath",
-		parentDirPath).CombinedOutput()
+		`"`+parentDirPath+`"`).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to add windows defender exclusion for '%s' - output: '%s' - %w",
 			parentDirPath, output, err)
