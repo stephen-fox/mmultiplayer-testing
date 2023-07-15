@@ -1,10 +1,12 @@
-// Application that helps evade Windows Defender by XORing launcher and dll and
-// extracting files at install time.
+// Application that helps evade Windows Defender by adding a Windows
+// Defender exclusion and XORing launcher and dll prior to extracting
+// those files at install-time.
 package main
 
 import (
 	"context"
 	_ "embed"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -31,27 +33,53 @@ func main() {
 }
 
 func mainWithError() error {
+	flag.Parse()
+
 	ctx, cancelFn := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancelFn()
 
+	switch flag.Arg(0) {
+	case "install":
+		return install(ctx)
+	case "uninstall":
+		return uninstall(ctx)
+	default:
+		return fmt.Errorf("unknown non-flag argument: '%s'", flag.Arg(0))
+	}
+}
+
+func install(ctx context.Context) error {
 	exePath, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("failed to get file path - %w", err)
+		return fmt.Errorf("failed to get exe path - %w", err)
 	}
 
-	parentDirPath := filepath.Dir(exePath)
+	parentDirectory := filepath.Dir(exePath)
 
+	// Windows Defender does not like how we do process
+	// injection. The long-term fix for this is to modify
+	// the launcher's process injection behavior to not
+	// make Defener angy. For now, we are opting to
+	// add a Defener exclusion for the "bin" directory.
+	//
+	// Adds "bin" directory as an exclusion path so
+	// that Windows Defender doesn't try to delete
+	// the launcher exe or client dll.
+	//
+	// We do this in squibbles instead of in the installer
+	// because Windows 11's Defender appears to test for
+	// this behavior. This does not appear to be the case
+	// on Windows 10.
 	output, err := exec.CommandContext(ctx,
 		`C:\WINDOWS\system32\WindowsPowerShell\v1.0\powershell.exe`,
 		"Add-MpPreference",
 		"-ExclusionPath",
-		`"`+parentDirPath+`"`).CombinedOutput()
+		`"`+parentDirectory+`"`).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to add windows defender exclusion for '%s' - output: '%s' - %w",
-			parentDirPath, output, err)
+			parentDirectory, output, err)
 	}
 
-	parentDirectory := filepath.Dir(exePath)
 	launcherF, err := os.OpenFile(filepath.Join(parentDirectory, "Launcher.exe"), os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {
 		return fmt.Errorf("cannot open launcher - %w", err)
@@ -76,6 +104,27 @@ func mainWithError() error {
 		if err != nil {
 			return fmt.Errorf("failed to write to dll - %w", err)
 		}
+	}
+
+	return nil
+}
+
+func uninstall(ctx context.Context) error {
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get exe path - %w", err)
+	}
+
+	parentDirectory := filepath.Dir(exePath)
+
+	output, err := exec.CommandContext(ctx,
+		`C:\WINDOWS\system32\WindowsPowerShell\v1.0\powershell.exe`,
+		"Remove-MpPreference",
+		"-ExclusionPath",
+		`"`+parentDirectory+`"`).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to remove windows defender exclusion for '%s' - output: '%s' - %w",
+			parentDirectory, output, err)
 	}
 
 	return nil

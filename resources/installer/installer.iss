@@ -74,14 +74,12 @@ Name: "{autoprograms}\{#AppNameOverride}"; Filename: "{app}\bin\{#AppExeNameOver
 ;Name: "{commondesktop}\{#AppNameOverride}"; Filename: "{app}\{#AppExeNameOverride}"; Tasks: desktopicon
 
 [Run]
-; Runs program to XOR and extract Launcher and dll.
-Filename: "{app}\bin\squibbles.exe"; Flags: runhidden
+; Refer to squibbles' documentation for more information.
+Filename: "{app}\bin\squibbles.exe"; Parameters: "install"; Flags: runhidden
 
 [UninstallRun]
-; Adds {app}\bin directory as an exclusion path so that Windows Defender doesn't try to delete.
-; Windows Defender does not like how we do process injection.
-; TODO: Need to have squibbles do this.
-;Filename: "C:\WINDOWS\system32\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "Remove-MpPreference -ExclusionPath ""\""{app}\bin\"""; Flags: runhidden
+; Refer to squibbles' documentation for more information.
+Filename: "{app}\bin\squibbles.exe"; Parameters: "uninstall"; Flags: runhidden
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\bin"
